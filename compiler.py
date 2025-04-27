@@ -15,6 +15,7 @@ gensym_num = 0
 global_logging = True
 
 tuple_var_types = {}
+dataclasstype_var_types = {}
 function_names = set()
 
 def log(label, value):
@@ -61,11 +62,20 @@ class Callable:
     args: List[type]
     output_type: type
 
+@dataclass
+class DataClassType:
+    field_types: Dict[str, type]
+
 def typecheck(program: Program) -> Program:
     """
     Typechecks the input program; throws an error if the program is not well-typed.
     :param program: The Lfun program to typecheck
     :return: The program, if it is well-typed
+
+    Changes for dataclasses:
+    define a datclass type which stores objects DataClassType
+    add cases for dataclass definitions and field references
+    record all dataclasstypes like tuple_valued_vars
     """
 
     prim_arg_types = {
@@ -96,6 +106,17 @@ def typecheck(program: Program) -> Program:
 
     def tc_exp(e: Expr, env: TEnv) -> type:
         match e:
+            case FieldRef(e1, field):
+                #check that e1 is a dataclasstype
+                assert tc_exp(e1) == DataClassType
+                #return type of field, not sure that this is how it's meant to be done? i think field is just a string
+                return tc_exp(e1.field_types[field])
+            case DataClassType(field_types):
+                #just need this case since we check that e1 is a dataclasstype in previous case
+                for t in field_types:
+                    #make sure that the field are permitted types
+                    tc_exp(field_types[t])
+                return DataClassType
             case Call(func, args):
                 arg_types = [tc_exp(a, env) for a in args]
                 match tc_exp(func, env):
@@ -137,6 +158,15 @@ def typecheck(program: Program) -> Program:
 
     def tc_stmt(s: Stmt, env: TEnv):
         match s:
+            case ClassDef(name, superclass, body):
+                field_types_list = []
+                #store field types
+                for s in body:
+                    #not sure how to handle methods yet
+                    field_types += tc_stmt(s)
+                    #how to add name of field to dictionary?
+                #NOT DONE
+                env[name] = Callable(field_types, DataClassType())
             case FunctionDef(name, params, body_stmts, return_type):
                 function_names.add(name)
                 arg_types = [t for x, t in params]
