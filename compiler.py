@@ -305,7 +305,78 @@ def rco(prog: Program) -> Program:
         case Program(stmts):
             return Program(rco_stmts(stmts))
 
+##################################################
+# eliminate-objects
+##################################################
+def eliminate_objects(prog: Program) -> Program:
+    """
+    Removes class definitions
+    Replaces functions calls to object constructors
+    Replace field references with tuple subscript
+    """
+    def eo_exp(e: Expr) -> Expr:
+        match e:
+            case FieldRef(lhs, field):
+                #TODO: Need dict of class arg names from typechecker
+                class_args = {'Point': ['x', 'y']} #TEMPORARY: THIS LINE SHOULD NOT BE HERE
+                print(lhs) #What format is this stored as?
 
+                sub_num = -1
+                for x in range(len(class_args[lhs])):
+                    if class_args[lhs][x] == field:
+                        sub_num = x
+                return Prim('subscript', [Constant(sub_num)])
+            case Call(func, args):
+                #TODO: Possibly need a list of all the class definitions created in typechecker
+                #use to know if Call is a datatype
+                if func in dataclasstype_var_types.keys:
+                    return Prim('tuple', args)
+                return Call(func, args)
+            case Var(x):
+                return Var(x)
+            case Constant(i):
+                return Constant(i)
+            case Prim(op, args):
+                return Prim(op, args)
+            case _:
+                raise Exception('eo_exp', e)
+    def eo_stmt(stmt: Stmt) -> Stmt:
+        match stmt:
+            case ClassDef(name, superclass, body_stmts):
+                return None #removing classdef's
+            case FunctionDef(name, params, body_stmts, return_type):
+                return FunctionDef(name, params, eo_stmts(body_stmts), return_type)
+            case Return(e):
+                return Return(eo_exp(e))
+            case Assign(x, e1):
+                new_e1 = eo_exp(e1)
+                return Assign(x, new_e1)
+            case Print(e1):
+                new_e1 = eo_exp(e1)
+                return Print(new_e1)
+            case If(condition, then_stmts, else_stmts):
+                #TODO: For if and while, we may need to add eo_stmt to the condition
+                # but we can test that when it runs past typechecker
+                new_then_stmts = eo_stmts(then_stmts)
+                new_else_stmts = eo_stmts(else_stmts)
+                return If(condition,
+                          new_then_stmts,
+                          new_else_stmts)
+            case While(condition, body_stmts):
+                new_body_stmts = eo_stmts(body_stmts)
+                return While(condition, new_body_stmts)
+            case _:
+                raise Exception('eo_stmt', stmt)
+    def eo_stmts(stmts: List[Stmt]) -> List[Stmt]:
+        all_stmts = []
+        for stmt in stmts:
+            new_stmt = eo_stmt(stmt)
+            all_stmts += [new_stmt]
+        return all_stmts
+
+    match prog:
+        case Program(stmts):
+            return Program(eo_stmts(stmts))
 ##################################################
 # explicate-control
 ##################################################
@@ -1139,6 +1210,7 @@ allocate_alloc:
 compiler_passes = {
     'typecheck': typecheck,
     'remove complex opera*': rco,
+    'eliminate objects': eliminate_objects,
     'typecheck2': typecheck,
     'explicate control': explicate_control,
     'select instructions': select_instructions,
