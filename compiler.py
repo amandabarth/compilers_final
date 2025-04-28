@@ -108,19 +108,22 @@ def typecheck(program: Program) -> Program:
         match e:
             case FieldRef(e1, field):
                 #check that e1 is a dataclasstype
-                assert tc_exp(e1) == DataClassType
+                class_type = tc_exp(e1,env)
+                if class_type not in dataclasstype_var_types.keys():
+                    raise Exception("class does not exist", class_type)
                 #return type of field, not sure that this is how it's meant to be done? i think field is just a string
-                return tc_exp(e1.field_types[field])
-            case DataClassType(field_types):
-                #just need this case since we check that e1 is a dataclasstype in previous case
-                for t in field_types:
-                    #make sure that the field are permitted types
-                    tc_exp(field_types[t])
-                return DataClassType
+                return dataclasstype_var_types[class_type].field_types[field]
+            # case DataClassType(field_types):
+            #     #just need this case since we check that e1 is a dataclasstype in previous case
+            #     for t in field_types:
+            #         #make sure that the field are permitted types
+            #         assert isinstance(field_types[t], type)
+            #     return DataClassType
             case Call(func, args):
                 arg_types = [tc_exp(a, env) for a in args]
                 match tc_exp(func, env):
                     case Callable(param_types, return_type):
+                        print(arg_types)
                         assert param_types == arg_types
                         return return_type
                     case t:
@@ -159,14 +162,18 @@ def typecheck(program: Program) -> Program:
     def tc_stmt(s: Stmt, env: TEnv):
         match s:
             case ClassDef(name, superclass, body):
+                field_types = {}
                 field_types_list = []
                 #store field types
                 for s in body:
+                    #s is in the format ('base', <class 'int'>)
                     #not sure how to handle methods yet
-                    field_types += tc_stmt(s)
+                    field_types[s[0]] = s[1]
+                    field_types_list.append(s[1])
                     #how to add name of field to dictionary?
                 #NOT DONE
-                env[name] = Callable(field_types, DataClassType())
+                dataclasstype_var_types[name] = DataClassType(field_types)
+                env[name] = Callable(field_types_list, name) #this is now throwing an error because DataClassType is not a builtin type
             case FunctionDef(name, params, body_stmts, return_type):
                 function_names.add(name)
                 arg_types = [t for x, t in params]
