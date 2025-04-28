@@ -249,6 +249,8 @@ def rco(prog: Program) -> Program:
 
     def rco_stmt(stmt: Stmt, new_stmts: List[Stmt]) -> Stmt:
         match stmt:
+            case ClassDef(name, superclass, body):
+                return stmt
             case FunctionDef(name, params, body_stmts, return_type):
                 return FunctionDef(name, params, rco_stmts(body_stmts), return_type)
             case Return(e):
