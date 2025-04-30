@@ -91,8 +91,7 @@ def typecheck(program: Program) -> Program:
         'gte':  [int, int],
         'lt':   [int, int],
         'lte':  [int, int],
-        'subscript': [int],
-        'tuple' : [int, int]
+        'subscript': [int]
     }
 
     prim_output_types = {
@@ -106,8 +105,7 @@ def typecheck(program: Program) -> Program:
         'gte':  bool,
         'lt':   bool,
         'lte':  bool,
-        'subscript': int,
-        'tuple': [int, int]
+        'subscript': int
     }
 
     def tc_exp(e: Expr, env: TEnv) -> type:
@@ -157,8 +155,12 @@ def typecheck(program: Program) -> Program:
                 return t
             case Prim('subscript', [e1, Constant(i)]):
                 t = tc_exp(e1, env)
-                assert isinstance(t, tuple)
-                return t[i]
+                if t in dataclasstype_var_types.keys():
+                    return t
+                if t not in dataclasstype_var_types.keys() and  type(t) != tuple and t != "tuple":
+                    raise Exception('not a valid subscriptable object', e)
+                #assert isinstance(t, tuple) #could also be DataclassType
+                return env[e1.name][i]
             case Prim(op, args):
                 arg_types = [tc_exp(a, env) for a in args]
                 assert arg_types == prim_arg_types[op]
@@ -366,7 +368,13 @@ def eliminate_objects(prog: Program) -> Program:
             case ClassDef(name, superclass, body_stmts):
                 pass #removing classdef's
             case FunctionDef(name, params, body_stmts, return_type):
-                return FunctionDef(name, params, eo_stmts(body_stmts), return_type)
+                new_params = []
+                for param in params:
+                    if param[1] in dataclasstype_var_types.keys():
+                        new_params += [(param[0], tuple(dataclasstype_var_types[param[1]].field_types.values()))] #TEST HARD CODING
+                    else:
+                        new_params += [(param[0],param[1])]
+                return FunctionDef(name, new_params, eo_stmts(body_stmts), return_type)
             case Return(e):
                 return Return(eo_exp(e))
             case Assign(x, e1):
@@ -376,8 +384,6 @@ def eliminate_objects(prog: Program) -> Program:
                 new_e1 = eo_exp(e1)
                 return Print(new_e1)
             case If(condition, then_stmts, else_stmts):
-                #TODO: For if and while, we may need to add eo_stmt to the condition
-                # but we can test that when it runs past typechecker
                 new_then_stmts = eo_stmts(then_stmts)
                 new_else_stmts = eo_stmts(else_stmts)
                 return If(condition,
