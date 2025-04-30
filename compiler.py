@@ -16,6 +16,8 @@ global_logging = True
 
 tuple_var_types = {}
 dataclasstype_var_types = {}
+dataclass_var_names = {}
+dataclass_fieldref_type = {}
 function_names = set()
 
 def log(label, value):
@@ -89,6 +91,8 @@ def typecheck(program: Program) -> Program:
         'gte':  [int, int],
         'lt':   [int, int],
         'lte':  [int, int],
+        'subscript': [int],
+        'tuple' : [int, int]
     }
 
     prim_output_types = {
@@ -102,6 +106,8 @@ def typecheck(program: Program) -> Program:
         'gte':  bool,
         'lt':   bool,
         'lte':  bool,
+        'subscript': int,
+        'tuple': [int, int]
     }
 
     def tc_exp(e: Expr, env: TEnv) -> type:
@@ -109,6 +115,7 @@ def typecheck(program: Program) -> Program:
             case FieldRef(e1, field):
                 #check that e1 is a dataclasstype
                 class_type = tc_exp(e1,env)
+                dataclass_fieldref_type[e1] = class_type
                 if class_type not in dataclasstype_var_types.keys():
                     raise Exception("class does not exist", class_type)
                 #return type of field, not sure that this is how it's meant to be done? i think field is just a string
@@ -164,14 +171,17 @@ def typecheck(program: Program) -> Program:
             case ClassDef(name, superclass, body):
                 field_types = {}
                 field_types_list = []
+                var_names = []
                 #store field types
                 for s in body:
                     #s is in the format ('base', <class 'int'>)
                     #not sure how to handle methods yet
+                    var_names.append(s[0])
                     field_types[s[0]] = s[1]
                     field_types_list.append(s[1])
                     #how to add name of field to dictionary?
                 #NOT DONE
+                dataclass_var_names[name] = var_names
                 dataclasstype_var_types[name] = DataClassType(field_types)
                 env[name] = Callable(field_types_list, name) #this is now throwing an error because DataClassType is not a builtin type
             case FunctionDef(name, params, body_stmts, return_type):
@@ -290,6 +300,11 @@ def rco(prog: Program) -> Program:
 
     def rco_exp(e: Expr, new_stmts: List[Stmt]) -> Expr:
         match e:
+            case FieldRef(e1, field):
+                new_e1 = rco_exp(e1, new_stmts)
+                new_v = gensym('tmp')
+                new_stmts.append(Assign(new_v, FieldRef(new_e1, field)))
+                return Var(new_v)
             case Call(func, args):
                 new_args = [rco_exp(e, new_stmts) for e in args]
                 new_func = rco_exp(func, new_stmts)
@@ -326,19 +341,15 @@ def eliminate_objects(prog: Program) -> Program:
     def eo_exp(e: Expr) -> Expr:
         match e:
             case FieldRef(lhs, field):
-                #TODO: Need dict of class arg names from typechecker
-                class_args = {'Point': ['x', 'y']} #TEMPORARY: THIS LINE SHOULD NOT BE HERE
-                print(lhs) #What format is this stored as?
-
                 sub_num = -1
-                for x in range(len(class_args[lhs])):
-                    if class_args[lhs][x] == field:
+                type_of_var = dataclass_fieldref_type[lhs]
+                for x in range(len(dataclass_var_names[type_of_var])):
+                    if dataclass_var_names[type_of_var][x] == field:
                         sub_num = x
-                return Prim('subscript', [Constant(sub_num)])
+                return Prim('subscript', [lhs, Constant(sub_num)])
             case Call(func, args):
-                #TODO: Possibly need a list of all the class definitions created in typechecker
                 #use to know if Call is a datatype
-                if func in dataclasstype_var_types.keys:
+                if func.name in dataclasstype_var_types.keys():
                     return Prim('tuple', args)
                 return Call(func, args)
             case Var(x):
@@ -346,13 +357,14 @@ def eliminate_objects(prog: Program) -> Program:
             case Constant(i):
                 return Constant(i)
             case Prim(op, args):
-                return Prim(op, args)
+                new_args = [eo_exp(e) for e in args]
+                return Prim(op, new_args)
             case _:
                 raise Exception('eo_exp', e)
     def eo_stmt(stmt: Stmt) -> Stmt:
         match stmt:
             case ClassDef(name, superclass, body_stmts):
-                return None #removing classdef's
+                pass #removing classdef's
             case FunctionDef(name, params, body_stmts, return_type):
                 return FunctionDef(name, params, eo_stmts(body_stmts), return_type)
             case Return(e):
@@ -380,7 +392,9 @@ def eliminate_objects(prog: Program) -> Program:
         all_stmts = []
         for stmt in stmts:
             new_stmt = eo_stmt(stmt)
-            all_stmts += [new_stmt]
+            if new_stmt:
+                all_stmts += [new_stmt]
+        print(all_stmts)
         return all_stmts
 
     match prog:
