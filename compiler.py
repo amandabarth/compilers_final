@@ -128,7 +128,8 @@ def typecheck(program: Program) -> Program:
                 arg_types = [tc_exp(a, env) for a in args]
                 match tc_exp(func, env):
                     case Callable(param_types, return_type):
-                        print(arg_types)
+                        if arg_types[0] == tuple(param_types): #this may not be a permanent solution, but it works for now
+                            return return_type
                         assert param_types == arg_types
                         return return_type
                     case t:
@@ -156,7 +157,8 @@ def typecheck(program: Program) -> Program:
             case Prim('subscript', [e1, Constant(i)]):
                 t = tc_exp(e1, env)
                 if t in dataclasstype_var_types.keys():
-                    return t
+                    list_of_var_names = dataclass_var_names[t]
+                    return dataclasstype_var_types[t].field_types[list_of_var_names[i]]
                 if t not in dataclasstype_var_types.keys() and  type(t) != tuple and t != "tuple":
                     raise Exception('not a valid subscriptable object', e)
                 #assert isinstance(t, tuple) #could also be DataclassType
@@ -344,7 +346,7 @@ def eliminate_objects(prog: Program) -> Program:
         match e:
             case FieldRef(lhs, field):
                 sub_num = -1
-                type_of_var = dataclass_fieldref_type[lhs]
+                type_of_var = dataclass_fieldref_type[lhs] #TODO: How to deal with tmp vars here
                 for x in range(len(dataclass_var_names[type_of_var])):
                     if dataclass_var_names[type_of_var][x] == field:
                         sub_num = x
