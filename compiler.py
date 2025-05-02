@@ -130,7 +130,24 @@ def typecheck(program: Program) -> Program:
                     case Callable(param_types, return_type):
                         if arg_types[0] == tuple(param_types): #this may not be a permanent solution, but it works for now
                             return return_type
-                        assert param_types == arg_types
+                        #if param_types contains object types, we want the types of their fields instead
+                        new_param_types = []
+                        entered_1 = False
+                        for a in param_types:
+                            if a in dataclasstype_var_types:
+                                entered_1 = True
+                                new_param_types += [tuple(dataclasstype_var_types[a].field_types.values())]
+                        if entered_1:
+                            param_types = new_param_types
+                        new_arg_types = []
+                        entered_2 = False
+                        for a in arg_types:
+                            if a in dataclasstype_var_types:
+                                entered_2 = True
+                                new_arg_types += [tuple(dataclasstype_var_types[a].field_types.values())]
+                        if entered_2:
+                            arg_types = new_arg_types
+                        assert param_types == arg_types #throwing assertion error
                         return return_type
                     case t:
                         raise Exception('expected function type, but got:', t)
@@ -402,7 +419,7 @@ def eliminate_objects(prog: Program) -> Program:
             new_stmt = eo_stmt(stmt)
             if new_stmt:
                 all_stmts += [new_stmt]
-        print(all_stmts)
+        #print(all_stmts)
         return all_stmts
 
     match prog:

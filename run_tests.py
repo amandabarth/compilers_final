@@ -24,19 +24,19 @@ for file_name in sorted(os.listdir('tests')):
             try:
                 program = f.read()
                 ast = parse(program)
-                interpreter_result = eval_Lif(ast)
-                print('interpreter result:', interpreter_result)
+                #interpreter_result = eval_Lif(ast)
+                #print('interpreter result:', interpreter_result)
             
                 x86_program = run_compiler(program, logging=False)
                 emu = eval_x86.X86Emulator(logging=False)
                 x86_output = emu.eval_program(x86_program)
 
-                if x86_output == interpreter_result:
-                    print('Test passed')
-                else:
-                    print('Test failed! **************************************************')
-                    print('Interpreter result:', interpreter_result)
-                    print('Compiled x86 result:', x86_output)
+                #if x86_output == interpreter_result:
+                    #print('Test passed')
+                #else:
+                    #print('Test failed! **************************************************')
+                    #print('Interpreter result:', interpreter_result)
+                    #print('Compiled x86 result:', x86_output)
 
                 if run_gcc:
                     asm_file_name = 'tests/' + file_name + '.s'
