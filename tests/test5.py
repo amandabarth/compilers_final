@@ -7,10 +7,14 @@ class Line:
     end : Point
 
 def difference_x(l: Line) -> int:
-    return l.end.x - l.start.x
+    l_end = l.end
+    l_start = l.start
+    return l_end.x - l_start.x
 
 def difference_y(l: Line) -> int:
-    return l.end.y - l.start.y
+    l_end = l.end
+    l_start = l.start
+    return l_end.y - l_start.y
 
 p1 = Point(1,2)
 p2 = Point(5, 5)
