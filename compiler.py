@@ -148,9 +148,10 @@ def typecheck(program: Program) -> Program:
                             if a in dataclasstype_var_types:
                                 entered_2 = True
                                 new_arg_types += [tuple(dataclasstype_var_types[a].field_types.values())]
-                            elif isinstance (a, tuple): #ahhhh this is not working and idk how to fix it
+                            elif isinstance (a, tuple) and isinstance(a[0], tuple): #ahhhh this is not working and idk how to fix it
                                 entered_2 = True
-                                new_arg_types += [tuple(t for t in a)]
+                                for t in a:
+                                    new_arg_types += [tuple(c for c in t)]
                         if entered_2:
                             arg_types = new_arg_types
                         assert param_types == arg_types #throwing assertion error
