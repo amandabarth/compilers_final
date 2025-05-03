@@ -1331,7 +1331,7 @@ if __name__ == '__main__':
 
             try:
                 program = f.read()
-                x86_program = run_compiler(program, logging=False)
+                x86_program = run_compiler(program, logging=True)
 
                 with open(file_name + '.s', 'w') as output_file:
                     output_file.write(x86_program)
