@@ -6,3 +6,5 @@ def is_yes(y: Yes_or_no) -> bool:
 
 question = Yes_or_no(True)
 answer = is_yes(question)
+
+print(answer)

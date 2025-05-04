@@ -30,6 +30,7 @@ for file_name in sorted(os.listdir('tests')):
                 x86_program = run_compiler(program, logging=False)
                 emu = eval_x86.X86Emulator(logging=False)
                 x86_output = emu.eval_program(x86_program)
+                print(x86_output)
 
                 #if x86_output == interpreter_result:
                     #print('Test passed')
