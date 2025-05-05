@@ -1030,7 +1030,7 @@ def _allocate_registers(current_function: str, program: x86.X86Program) -> x86.X
 
     # Step 1: Perform liveness analysis
     ul_fixpoint()
-    log_ast('live-after sets', live_after_sets)
+    #log_ast('live-after sets', live_after_sets)
 
     # Step 2: Build the interference graph
     interference_graph = InterferenceGraph()
@@ -1038,13 +1038,13 @@ def _allocate_registers(current_function: str, program: x86.X86Program) -> x86.X
     for label in blocks.keys():
         bi_block(blocks[label], live_after_sets[label], interference_graph)
 
-    log_ast('interference graph', interference_graph)
+    #log_ast('interference graph', interference_graph)
 
     # Step 3: Color the graph
     all_vars = interference_graph.get_nodes()
     coloring = color_graph(all_vars, interference_graph)
     colors_used = set(coloring.values())
-    log('coloring', coloring)
+    #log('coloring', coloring)
 
     # Defines the set of registers to use
     available_registers = constants.caller_saved_registers + constants.callee_saved_registers
@@ -1066,7 +1066,7 @@ def _allocate_registers(current_function: str, program: x86.X86Program) -> x86.X
     # Step 4.2: Compose the "coloring" with the "color map" to get "homes"
     for v in all_vars:
         homes[v] = color_map[coloring[v]]
-    log('homes', homes)
+    #log('homes', homes)
 
     # Step 5: replace variables with their homes
     blocks = program.blocks
